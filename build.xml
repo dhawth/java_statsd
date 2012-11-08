@@ -1,0 +1,30 @@
+<project name="JavaStatsd" default="full" basedir=".">
+
+	<loadfile property="release_version" srcFile="VERSION">
+		<filterchain>
+			<striplinebreaks/>
+		</filterchain>
+	</loadfile>
+
+	<!--
+		Set the current VERSION in the VERSION file with no newline
+		when a new version of derp is rolled to packge.  This should
+		coincide with a git tag.
+	-->
+
+	<property name="dist.dir" location="dist"/>
+
+	<target name="clean">
+		<delete dir="${dist.dir}"/>
+	</target>
+
+	<target name="package">
+		<mkdir dir="${dist.dir}"/>
+		<mkdir dir="${dist.dir}/lib"/>
+		<copy file="target/JavaStatsd-0.0.1.jar" tofile="JavaStatsd.jar"/>
+
+		<exec executable="fpm">
+			<arg line="-s dir -t deb -n java_statsd -v ${release_version} --iteration 1 -p dist/lib/java_statsd-${release_version}-1_amd64.deb --prefix /opt/java_statsd/bin -C target --description 'JavaStatsd Monitoring Daemon' JavaStatsd.jar"/>
+		</exec>
+	</target>
+</project>

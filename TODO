@@ -1,0 +1,14 @@
+unit and end-to-end tests
+javadoc
+document the use of prepend_strings
+provide examples for UDP and ZMQ shippers and timers, etc
+
+StatsObject.timing() will add the timer to an internal array of values that are periodically shipped
+to statsd via ZMQStatsdShipper UNLESS there is a UDPStatsdClient registered with the StatsObject,
+in which case the timing() call will trigger an immediate UDP packet send instead of queueing the
+value up for a batch submission, because the UDP protocol does not support batch submission.  This
+reduces memory usage when using the UDP StatsdClient by not queueing values at the cost of increased
+number of packets (and thus sycalls, etc) sent, and amortizes the cost of timer submissions over the
+submission period.
+
+Document the use of prepend strings.
