@@ -25,6 +25,8 @@ import java.net.*;
 
 import org.apache.log4j.*;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Poller;
@@ -38,11 +40,15 @@ class MockZMQReceiver implements Runnable
 {
 	private static final Logger log = Logger.getLogger(MockZMQReceiver.class);
 
+	@NotNull
 	private HashMap<String, TreeMap<Integer, Long>> results = new HashMap<String, TreeMap<Integer, Long>>();
 	private volatile boolean done = false;
 	private static final String url = "tcp://127.0.0.1:12004";
+	@Nullable
 	private Context context = null;
+	@Nullable
 	private Socket  socket  = null;
+	@Nullable
 	private Poller  items = null;
 
 	public void shutdown()
@@ -61,6 +67,7 @@ class MockZMQReceiver implements Runnable
 		items.register(socket, Poller.POLLIN);
 	}
 
+	@NotNull
 	public HashMap<String, TreeMap<Integer, Long>> getResults()
 	{
 		return results;
@@ -121,14 +128,10 @@ class MockZMQReceiver implements Runnable
 
 				results.get(fields[0]).put(timestamp, value + results.get(fields[0]).get(timestamp));
 			}
-		}
-		catch (Exception e)
-		{
-			log.info("exception in socket send: " + e);
-		}
-		finally
-		{
-			socket.close();
+			catch (Exception e)
+			{
+				log.info("exception in socket send: " + e);
+			}
 		}
 	}
 }

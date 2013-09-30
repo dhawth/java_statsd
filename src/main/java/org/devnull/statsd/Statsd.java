@@ -1,120 +1,121 @@
-/*
- *
- *  * Copyright 2012 David Hawthorne, 3Crowd/XDN, Inc.
- *  *
- *  *    Licensed under the Apache License, Version 2.0 (the "License");
- *  *    you may not use this file except in compliance with the License.
- *  *    You may obtain a copy of the License at
- *  *
- *  *        http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  *    Unless required by applicable law or agreed to in writing, software
- *  *    distributed under the License is distributed on an "AS IS" BASIS,
- *  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *    See the License for the specific language governing permissions and
- *  *    limitations under the License.
- *
- */
-
 package org.devnull.statsd;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.net.*;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.GnuParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-
-import org.apache.log4j.*;
-
+import org.apache.commons.cli.*;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-
+import org.apache.log4j.*;
+import org.devnull.statsd.models.StatsdConfig;
+import org.devnull.statsd.models.ShipperConfig;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Poller;
 import org.zeromq.ZMQ.Socket;
+import org.codehaus.jackson.map.ObjectMapper;
 
-//
-// configuration models
-//
-import org.devnull.statsd.models.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.io.File;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Map;
 
-public class Statsd
+public class Statsd implements Runnable
 {
+	@Nullable
 	private static Logger log = null;
 
-	private String configFile = "/etc/statsd/statsd.conf";
-	private String log4jConfig = "/etc/statsd/statsd.log4j.conf";
+	@Nullable
+	private StatsdConfig config = null;
+	@Nullable
+	private String log4jConfig = null;
 	private boolean debug = false;
-	private NodeConfig config = null;
+	private boolean done = false;
+
+	@NotNull
 	private ArrayList<Thread> threads = new ArrayList<Thread>();
-	private HashMap<String, Long> counters = new HashMap<String, Long>();
-	private HashMap<String, DescriptiveStatistics> timers = new HashMap<String, DescriptiveStatistics>();
-	private final Object countersLock = new Object();
-	private final Object timersLock = new Object();
+
+	@NotNull
+	private ArrayList<Listener> listeners = new ArrayList<Listener>();
+	@NotNull
+	private ArrayList<Shipper>  shippers  = new ArrayList<Shipper>();
+
+	@Nullable
+	private DataShipper dataShipper = null;
+
+	//
+	// used by DataShipper class as well
+	//
+	@NotNull
+	protected final HashMap<String, Long> counters = new HashMap<String, Long>();
+	@NotNull
+	protected final HashMap<String, DescriptiveStatistics> timers = new HashMap<String, DescriptiveStatistics>();
+
+	@NotNull
+	protected LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue = new LinkedBlockingQueue<Map.Entry<String, Long>>();
+	@NotNull
+	protected LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = new LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>>();
 
 	public static void main(String[] args) throws Exception
 	{
-		log = Logger.getLogger(Statsd.class);
-		BasicConfigurator.configure();
-
-		Statsd ic = new Statsd();
-
-		try
-		{
-			ic.doMain(args);
-		}
-		catch (Exception e)
-		{
-			log.error("Error", e);
-			e.printStackTrace();
-			throw new Exception(e);
-		}
+		Statsd ic = new Statsd(args);
+		Thread icThread = new Thread(ic, "Statsd");
+		icThread.start();
+		icThread.join();
 	}
 
-	private void doMain(String[] args) throws Exception
+	public Statsd(String[] args) throws Exception
 	{
-		if (!parseOptions(args))
+		BasicConfigurator.configure();
+		log = Logger.getLogger(Statsd.class);
+		parseOptions(args);
+
+		if (config.udp_host != null)
 		{
-			return;
+			UDPListener udpListener = new UDPListener(config, counters, timers);
+			listeners.add(udpListener);
+			threads.add(new Thread(udpListener, "UDPListener"));
 		}
 
-		setupLogging();
+		if (config.zmq_url != null)
+		{
 
-		config = ConfigReaders.ReadNodeConfig(configFile);
+			ZMQListener zmqListener = new ZMQListener(config, counters, timers);
+			listeners.add(zmqListener);
+			threads.add(new Thread(zmqListener, "ZMQListener"));
+		}
 
-		checkConfig(config);
+		int i = 0;
 
-		//
-		// instantiate and configure the listeners
-		//
-		UDPListener udpListener = new UDPListener();
-		ZMQListener zmqListener = new ZMQListener();
+		for (ShipperConfig c : config.shippers)
+		{
+			Shipper s = (Shipper)Class.forName(c.className).newInstance();
+			s.configure(config, c, countersQueue, timersQueue);
+			shippers.add(s);
+			threads.add(new Thread(s, "Shipper" + i));
+		}
 
-		threads.add(new Thread(udpListener, "UDPListener"));
-		threads.add(new Thread(zmqListener, "ZMQListener"));
-
-		//
-		// instantiate and configure the shipper manager
-		//
-		DataShipper dataShipper = new DataShipper(config);
-
+		dataShipper = new DataShipper(config);
 		threads.add(new Thread(dataShipper, "DataShipper"));
+	}
 
+	//
+	// continue until shutdown() is called
+	//
+	public void run()
+	{
 		for (Thread t : threads)
 		{
 			t.start();
 		}
 
-		//
-		// program runs continuously
-		//
-		while (true)
+		while (!done)
 		{
 			try
 			{
@@ -124,35 +125,64 @@ public class Statsd
 			{
 			}
 		}
-		
+
+		for (Listener l : listeners)
+		{
+			l.shutdown();
+		}
+
+		for (Shipper s : shippers)
+		{
+			s.shutdown();
+		}
+
+		dataShipper.shutdown();
+
+		for (Thread t : threads)
+		{
+			try
+			{
+				if (log.isDebugEnabled())
+				{
+					log.debug("joining thread " + t.getName());
+				}
+
+				t.interrupt();
+				t.join(100L);
+			}
+			catch (InterruptedException iex)
+			{
+			}
+		}
+
 		//
 		// end of program
 		//
 	}
 
-	private void checkConfig(final NodeConfig config)
+	public void shutdown()
 	{
-		if (null == config)
-		{
-			throw new IllegalArgumentException("config is null");
-		}
+		done = true;
 	}
 
-	private void setupLogging()
+	private void setupLogging() throws Exception
 	{
 		LogManager.resetConfiguration();
 
-		File log4jFile = new File(log4jConfig);
-
-		if (!log4jFile.exists())
+		//
+		// load default included in jar file
+		//
+		if (null == log4jConfig)
 		{
-			throw new IllegalArgumentException("log4j config file does not exist: " + log4jConfig);
+			PropertyConfigurator.configure(Statsd.class.getResource("/resources/log4j.conf"));
 		}
-
-		//
-		// load log4j config file
-		//
-		PropertyConfigurator.configure(log4jConfig);
+		else
+		{
+			//
+			// load log4j config file
+			//
+			PropertyConfigurator.configure(log4jConfig);
+		}
 
 		if (debug)
 		{
@@ -162,7 +192,7 @@ public class Statsd
 		log = Logger.getLogger(Statsd.class);
 	}
 
-	private boolean parseOptions(String[] args) throws Exception
+	private void parseOptions(String[] args) throws Exception
 	{
 		CommandLineParser parser = new GnuParser();
 		CommandLine cl = parser.parse(getOptions(), args);
@@ -172,12 +202,8 @@ public class Statsd
 		{
 			if (option.getOpt().equals("c"))
 			{
-				File tmp = new File(option.getValue());
-				if (!tmp.exists())
-				{
-					throw new RuntimeException("Path to config file is invalid: " + tmp);
-				}
-				configFile = option.getValue();
+				ObjectMapper mapper = new ObjectMapper();
+				config = mapper.readValue(new File(option.getValue()), StatsdConfig.class);
 			}
 			else if (option.getOpt().equals("D"))
 			{
@@ -185,23 +211,20 @@ public class Statsd
 			}
 			else if (option.getOpt().equals("l"))
 			{
-				File tmp = new File(option.getValue());
-				if (!tmp.exists())
-				{
-					throw new RuntimeException("Path to log4j config file is invalid: " + tmp);
-				}
 				log4jConfig = option.getValue();
 			}
 			else if (option.getOpt().equals("h"))
 			{
 				HelpFormatter formatter = new HelpFormatter();
 				formatter.printHelp("java -jar Statsd.jar", getOptions());
-				return false;
+				System.exit(0);
 			}
 		}
-		return true;
+
+		setupLogging();
 	}
 
+	@NotNull
 	Options getOptions()
 	{
 		Options options = new Options();
@@ -214,14 +237,12 @@ public class Statsd
 
 	private class DataShipper implements Runnable
 	{
-		private ExecutorService pool = null;
-		private NodeConfig config = null;
+		private StatsdConfig config = null;
 		private boolean done = false;
 
-		public DataShipper(final NodeConfig config)
+		public DataShipper(@NotNull final StatsdConfig config)
 		{
 			this.config = config;
-			pool = Executors.newFixedThreadPool(config.shippers.size());
 		}
 
 		public void run()
@@ -232,325 +253,26 @@ public class Statsd
 				{
 					Thread.sleep(config.submit_interval * 1000);
 
-					HashMap<String, Long> myCounters = null;
-					HashMap<String, DescriptiveStatistics> myTimers = null;
-
-					synchronized(countersLock)
+					synchronized(counters)
 					{
-						synchronized(timersLock)
+						for (Map.Entry<String, Long> e : counters.entrySet())
 						{
-							myCounters = counters;
-							myTimers = timers;
-							counters = new HashMap<String, Long>();
-							timers = new HashMap<String, DescriptiveStatistics>();
+							countersQueue.offer(e);
 						}
+						counters.clear();
 					}
 
-					long now = System.currentTimeMillis() / 1000;
-
-					for (ShipperConfig c : config.shippers)
+					synchronized(timers)
 					{
-						try
+						for (Map.Entry<String, DescriptiveStatistics> e : timers.entrySet())
 						{
-							Shipper s = (Shipper)Class.forName(c.className).newInstance();
-							s.configure(config, c, now, myCounters, myTimers);
-							pool.execute(s);
+							timersQueue.offer(e);
 						}
-						catch (Exception e2)
-						{
-							log.warn("could not start shipper: " + e2);
-						}
-					}
-					pool.shutdown();
-				}	
-				catch (Exception e)
-				{
-				}
-			}
-		}
-
-		public void shutdown()
-		{
-			done = true;
-		}
-	}
-
-	private class UDPListener implements Runnable
-	{
-		private InetSocketAddress sockAddr = null;
-		private DatagramSocket socket = null;
-		private boolean done = false;
-
-		public UDPListener()
-			throws Exception
-		{
-			sockAddr = new InetSocketAddress(config.udp_host, config.udp_port);
-			socket = new DatagramSocket(sockAddr);
-		}
-
-		public void run()
-		{
-			byte[] receiveBuff = new byte[1500];
-
-			while (!done)
-			{
-				try
-				{
-					Arrays.fill(receiveBuff, (byte)0);
-					DatagramPacket p = new DatagramPacket(receiveBuff, receiveBuff.length);
-					socket.receive(p);
-					String data = new String(p.getData());
-
-					if (log.isDebugEnabled())
-					{
-						log.debug("received packet: " + data);
-					}
-
-					ArrayList<String> lines = new ArrayList<String>();
-
-					if (data.contains("\\n"))
-					{
-						Collections.addAll(lines, data.split("\\n"));
-					}
-					else
-					{
-						lines.add(data);
-					}
-
-					for (String line : lines)
-					{
-						String[] fields;
-
-						//
-						// format is name[:|]value|(c|ms|t)
-						//
-						if (line.contains(":"))
-						{
-							fields = line.split(":");
-						}
-						else
-						{
-							fields = line.split("|", 2);
-						}
-
-						if (fields.length != 2)
-							continue;
-
-						String name = fields[0];
-						fields = fields[1].split("|");
-
-						if (fields.length < 2)
-							continue;
-
-						String value = fields[0];
-						String type  = fields[1];
-
-						if (type.equals("ms") || type.equals("t"))
-						{
-							if (fields.length > 2)
-								continue;
-
-							//
-							// update timer
-							//
-							synchronized(timersLock)
-							{
-								if (!timers.containsKey(name))
-									timers.put(name, new DescriptiveStatistics());
-
-								if (value.contains(","))
-								{
-									for (String v : value.split(","))
-									{
-										timers.get(name).addValue(Double.valueOf(v));
-									}
-								}
-								else
-								{
-									timers.get(name).addValue(Double.valueOf(value));
-								}
-							}
-						}
-						else if (type.equals("c"))
-						{
-							double v = Double.valueOf(value);
-
-							if (fields.length > 2)
-							{
-								fields[2] = fields[2].replace("@", "");
-								v *= Double.valueOf(fields[2]);
-							}
-
-							synchronized(countersLock)
-							{
-								if (!counters.containsKey(name))
-									counters.put(name, 0L);
-
-								counters.put(name, counters.get(name) + (long)v);
-							}
-						}
+						timers.clear();
 					}
 				}
 				catch (Exception e)
 				{
-					log.info("exception in socket receive: " + e);
-				}
-			}
-		}
-
-		public void shutdown()
-		{
-			done = true;
-		}
-	}
-
-	private class ZMQListener implements Runnable
-	{
-		private boolean done = false;
-	        private Context context = null;
-	        private Socket  socket  = null;
-	        private Poller  items = null;
-
-		public ZMQListener()
-		{
-			context = ZMQ.context(1);
-	                socket = context.socket(ZMQ.PULL);
-	                socket.setLinger(0L);
-	                socket.bind(config.zmq_url);
-	                items = context.poller(1);
-	                items.register(socket, Poller.POLLIN);
-		}
-
-		public void run()
-		{
-			String data = null;
-
-			while (!done)
-			{
-				try
-				{
-	                                //
-	                                // poll returns the number of items that were signaled in this call
-	                                //
-	                                if (0 == items.poll(1000L))
-	                                {
-	                                        //
-	                                        // poll expired, do nothing
-	                                        //
-	                                        continue;
-	                                }
-	
-	                                if (!items.pollin(0))
-	                                {
-	                                        log.debug("poll returned non-zero, but pollin(0) was not true...");
-	                                        continue;
-	                                }
-
-	                                data = new String(socket.recv(0));
-
-					if (log.isDebugEnabled())
-					{
-						log.debug("received packet: " + data);
-					}
-
-					ArrayList<String> lines = new ArrayList<String>();
-
-					if (data.contains("\\n"))
-					{
-						Collections.addAll(lines, data.split("\\n"));
-					}
-					else
-					{
-						lines.add(data);
-					}
-
-					for (String line : lines)
-					{
-						//
-						// format is version;name[:|]value|(c|ms|t)
-						//
-
-						String[] fields;
-
-						fields = line.split(";");
-
-						if (fields.length != 2)
-							continue;
-
-						if (!fields[0].equals("1"))
-							continue;
-
-						if (fields[1].contains(":"))
-						{
-							fields = fields[1].split(":");
-						}
-						else
-						{
-							fields = fields[1].split("|", 2);
-						}
-
-						if (fields.length != 2)
-							continue;
-
-						String name = fields[0];
-
-						fields = fields[1].split("|");
-
-						if (fields.length < 2)
-							continue;
-
-						String value = fields[0];
-						String type  = fields[1];
-
-						if (type.equals("ms") || type.equals("t"))
-						{
-							if (fields.length > 2)
-								continue;
-
-							//
-							// update timer
-							//
-							synchronized(timersLock)
-							{
-								if (!timers.containsKey(name))
-									timers.put(name, new DescriptiveStatistics());
-
-								if (value.contains(","))
-								{
-									for (String v : value.split(","))
-									{
-										timers.get(name).addValue(Double.valueOf(v));
-									}
-								}
-								else
-								{
-									timers.get(name).addValue(Double.valueOf(value));
-								}
-							}
-						}
-						else if (type.equals("c"))
-						{
-							double v = Double.valueOf(value);
-
-							if (fields.length > 2)
-							{
-								fields[2] = fields[2].replace("@", "");
-								v *= Double.valueOf(fields[2]);
-							}
-
-							synchronized(countersLock)
-							{
-								if (!counters.containsKey(name))
-									counters.put(name, 0L);
-
-								counters.put(name, counters.get(name) + (long)v);
-							}
-						}
-					}
-				}
-				catch (Exception e)
-				{
-					log.info("exception in socket receive: " + e);
 				}
 			}
 		}

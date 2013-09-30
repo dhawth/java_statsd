@@ -22,6 +22,7 @@ import org.devnull.statsd.models.*;
 import org.devnull.statsd.*;
 import org.devnull.statsd_client.models.*;
 import org.devnull.statsd_client.*;
+import java.util.*;
 
 //
 // goal:
@@ -44,7 +45,7 @@ public class TestUDPStatsdShipper
 		//
 		// put together config for statsd server
 		//
-		NodeConfig config = new NodeConfig();
+		StatsdConfig config = new StatsdConfig();
 
 		config.suffix = "sjc1.testnode";		// host testnode.sjc1.devnull.org
 		config.submit_interval = 1;			// 1 second

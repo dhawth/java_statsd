@@ -23,6 +23,7 @@ import java.net.*;
 import java.util.*;
 
 import org.apache.log4j.*;
+import org.jetbrains.annotations.NotNull;
 
 //
 // this class is not intended to be threadsafe
@@ -32,6 +33,7 @@ class MockGraphite implements Runnable
 {
 	private static final Logger log = Logger.getLogger(MockGraphite.class);
 
+	@NotNull
 	private HashMap<String, TreeMap<Integer, Long>> results = new HashMap<String, TreeMap<Integer, Long>>();
 	private volatile boolean done = false;
 	private static final Integer PORT = 12003;
@@ -43,85 +45,94 @@ class MockGraphite implements Runnable
 
 	public void run()
 	{
-		ServerSocket sock = new ServerSocket(PORT);
-		sock.setSoTimeout(100);
-
-		while (!done)
+		try
 		{
-			Socket incoming = null;
-
-			try
+			ServerSocket sock = new ServerSocket(PORT);
+			sock.setSoTimeout(100);
+	
+			while (!done)
 			{
+				Socket incoming = null;
+	
 				try
-				{
-					incoming = sock.accept();
-				}
-				catch (SocketTimeoutException)
-				{
-					continue;
-				}
-	
-				if (null == incoming)
-				{
-					continue;
-				}
-	
-				BufferedReader reader = new BufferedReader(new InputStreamReader(incoming.getInputStream()));
-				String message = reader.readLine();
-	
-				if (null == message)
-				{
-					log.debug("received null message");
-					continue;
-				}
-
-				for (String line : message.split("\\n"))
-				{
-					String[] fields = line.split(" ");
-					if (fields.length != 3)
-					{
-						log.info("too few fields in line: " + line);
-						continue;
-					}
-
-					if (!results.containsKey(fields[0]))
-					{
-						results.put(fields[0], new TreeMap<Integer, Long>());
-					}
-
-					Integer timestamp = Integer.parseInt(fields[2]);
-
-					if (results.get(fields[0]).get(timestamp) == null)
-					{
-						results.get(fields[0]).put(timestamp, 0L);
-					}
-
-					Long value = Long.parseLong(fields[1]);
-
-					results.get(fields[0]).put(timestamp, value + results.get(fields[0]).get(timestamp));
-				}
-			}
-			catch (Exception e)
-			{
-				log.info("exception in handle message: " + e);
-			}
-			finally
-			{
-				if (null != incoming)
 				{
 					try
 					{
-						incoming.close();
+						incoming = sock.accept();
 					}
-					catch (Exception e)
+					catch (SocketTimeoutException ste)
 					{
-						log.info("exception closing socket: " + e);
+						continue;
+					}
+		
+					if (null == incoming)
+					{
+						continue;
+					}
+		
+					BufferedReader reader = new BufferedReader(new InputStreamReader(incoming.getInputStream()));
+					String message = reader.readLine();
+		
+					if (null == message)
+					{
+						log.debug("received null message");
+						continue;
+					}
+	
+					for (String line : message.split("\\n"))
+					{
+						String[] fields = line.split(" ");
+						if (fields.length != 3)
+						{
+							log.info("too few fields in line: " + line);
+							continue;
+						}
+	
+						if (!results.containsKey(fields[0]))
+						{
+							results.put(fields[0], new TreeMap<Integer, Long>());
+						}
+	
+						Integer timestamp = Integer.parseInt(fields[2]);
+	
+						if (results.get(fields[0]).get(timestamp) == null)
+						{
+							results.get(fields[0]).put(timestamp, 0L);
+						}
+	
+						Long value = Long.parseLong(fields[1]);
+	
+						results.get(fields[0]).put(timestamp, value + results.get(fields[0]).get(timestamp));
+					}
+				}
+				catch (Exception e)
+				{
+					log.info("exception in handle message: " + e);
+				}
+				finally
+				{
+					if (null != incoming)
+					{
+						try
+						{
+							incoming.close();
+						}
+						catch (Exception e)
+						{
+							log.info("exception closing socket: " + e);
+						}
 					}
 				}
 			}
+	
+		}
+		catch (Exception e)
+		{
+			log.warn("Exception setting up mock graphite: " + e);
 		}
 	}
 
+	@NotNull
 	public HashMap<String, TreeMap<Integer, Long>> getResults()
 	{
 		return results;

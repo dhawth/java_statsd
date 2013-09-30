@@ -1,21 +1,3 @@
-/*
- *
- *  * Copyright 2012 David Hawthorne, 3Crowd/XDN, Inc.
- *  *
- *  *    Licensed under the Apache License, Version 2.0 (the "License");
- *  *    you may not use this file except in compliance with the License.
- *  *    You may obtain a copy of the License at
- *  *
- *  *        http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  *    Unless required by applicable law or agreed to in writing, software
- *  *    distributed under the License is distributed on an "AS IS" BASIS,
- *  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *    See the License for the specific language governing permissions and
- *  *    limitations under the License.
- *
- */
-
 package org.devnull.statsd_client;
 
 //
@@ -29,13 +11,17 @@ import java.net.UnknownHostException;
 import java.net.SocketException;
 
 import org.devnull.statsd_client.models.UDPStatsdClientConfig;
+import org.jetbrains.annotations.Nullable;
 
 final public class UDPStatsdShipper implements Runnable
 {
 	private static Logger log 	= Logger.getLogger(UDPStatsdShipper.class);
-	private StatsObject so 		= null;
-	private UDPStatsdClient client 	= null;
-	private UDPStatsdClientConfig config 	= null;
+
+	private boolean done = false;
+
+	@Nullable private StatsObject so 		= null;
+	@Nullable private UDPStatsdClient client 	= null;
+	@Nullable private UDPStatsdClientConfig config 	= null;
 
 	public UDPStatsdShipper()
 	{
@@ -47,7 +33,7 @@ final public class UDPStatsdShipper implements Runnable
 		configure(c);
 	}
 
-	public void configure(final UDPStatsdClientConfig c)
+	public void configure(@Nullable final UDPStatsdClientConfig c)
 		throws IllegalArgumentException, UnknownHostException, SocketException
 	{
 		if (null == c) {
@@ -73,6 +59,10 @@ final public class UDPStatsdShipper implements Runnable
 		so.registerUDPStatsdClient(client);
 	}
 
+	private void shutdown()
+	{
+		done = true;
+	}
 	//
 	// this assumes that timers are all sent as they occur
 	// from within the StatsObject class as a result of registering the
@@ -81,7 +71,7 @@ final public class UDPStatsdShipper implements Runnable
 	//
 	public void run()
 	{
-		while (true)
+		while (!done)
 		{
 			try
 			{

@@ -1,21 +1,3 @@
-/*
- *
- *  * Copyright 2012 David Hawthorne, 3Crowd/XDN, Inc.
- *  *
- *  *    Licensed under the Apache License, Version 2.0 (the "License");
- *  *    you may not use this file except in compliance with the License.
- *  *    You may obtain a copy of the License at
- *  *
- *  *        http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  *    Unless required by applicable law or agreed to in writing, software
- *  *    distributed under the License is distributed on an "AS IS" BASIS,
- *  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *    See the License for the specific language governing permissions and
- *  *    limitations under the License.
- *
- */
-
 package org.devnull.statsd_client;
 
 //
@@ -60,9 +42,11 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 import org.apache.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 public class UDPStatsdClient
 {
+	@NotNull
 	private static Random RNG = new Random();
 	private static Logger log = Logger.getLogger(UDPStatsdClient.class);
 
@@ -129,7 +113,7 @@ public class UDPStatsdClient
 		return send(stat, sampleRate);
 	}
 
-	public boolean increment(int magnitude, double sampleRate, String... keys) {
+	public boolean increment(int magnitude, double sampleRate, @NotNull String... keys) {
 		String[] stats = new String[keys.length];
 		for (int i = 0; i < keys.length; i++) {
 			stats[i] = String.format("%s:%s|c", keys[i], magnitude);
@@ -141,7 +125,7 @@ public class UDPStatsdClient
 		return send(sampleRate, stat);
 	}
 
-	private boolean send(double sampleRate, String... stats) {
+	private boolean send(double sampleRate, @NotNull String... stats) {
 
 		boolean retval = false; // didn't send anything
 		if (sampleRate < 1.0) {
@@ -165,7 +149,7 @@ public class UDPStatsdClient
 		return retval;
 	}
 
-	private boolean doSend(String stat) {
+	private boolean doSend(@NotNull String stat) {
 		try {
 			byte[] data = stat.getBytes();
 			_sock.send(new DatagramPacket(data, data.length, _host, _port));

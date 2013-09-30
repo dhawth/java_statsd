@@ -1,68 +1,55 @@
-/*
- *
- *  * Copyright 2012 David Hawthorne, 3Crowd/XDN, Inc.
- *  *
- *  *    Licensed under the Apache License, Version 2.0 (the "License");
- *  *    you may not use this file except in compliance with the License.
- *  *    You may obtain a copy of the License at
- *  *
- *  *        http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  *    Unless required by applicable law or agreed to in writing, software
- *  *    distributed under the License is distributed on an "AS IS" BASIS,
- *  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *    See the License for the specific language governing permissions and
- *  *    limitations under the License.
- *
- */
-
 package org.devnull.statsd;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.net.*;
-
-import com.google.gson.*;
-import org.apache.commons.cli.*;
-import org.apache.log4j.*;
-
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.apache.log4j.Logger;
+import org.devnull.statsd.models.GraphiteShipperConfig;
+import org.devnull.statsd.models.StatsdConfig;
+import org.devnull.statsd.models.ShipperConfig;
 import org.jetbrains.annotations.NotNull;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.jetbrains.annotations.Nullable;
 
-//
-// configuration models
-//
-import org.devnull.statsd.models.*;
+import java.io.DataOutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.util.HashMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class GraphiteShipper implements Shipper
 {
 	private static Logger log = Logger.getLogger(GraphiteShipper.class);
-	private HashMap<String, Long> counters = null;
-	private HashMap<String, DescriptiveStatistics> timers = null;
-	private long now = 0;
+	@Nullable
+	private StatsdConfig statsdConfig = null;
+	private boolean done = false;
 
-	private NodeConfig nodeConfig = null;
-	private GraphiteShipperConfig config = null;
-	private InetAddress addr = null;
+	@Nullable
+	private LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue = null;
+	@Nullable
+	private LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = null;
+
+	@Nullable
 	private SocketAddress sockAddr = null;
+	@Nullable
 	private Socket socket = null;
 
 	public GraphiteShipper()
 	{
 	}
 
-	public void configure(@NotNull final NodeConfig nodeConfig,
+	public void configure(@NotNull final StatsdConfig statsdConfig,
 			      @NotNull final ShipperConfig c,
-			      final long now,
-			      @NotNull final HashMap<String, Long> counters,
-			      @NotNull final HashMap<String, DescriptiveStatistics> timers)
+			      @NotNull final LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue,
+			      @NotNull final LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue)
 
 		throws Exception
 	{
-		if (null == nodeConfig)
+		if (null == statsdConfig)
 		{
-			throw new IllegalArgumentException("nodeConfig can not be null");
+			throw new IllegalArgumentException("statsdConfig can not be null");
 		}
 		if (null == c)
 		{
@@ -72,106 +59,129 @@ public class GraphiteShipper implements Shipper
 		{
 			throw new IllegalArgumentException("ShipperConfig 'configuration' is null");
 		}
-		if (null == counters)
+		if (null == countersQueue)
 		{
 			throw new IllegalArgumentException("counters can not be null");
 		}
-		if (null == timers)
+		if (null == timersQueue)
 		{
 			throw new IllegalArgumentException("timers can not be null");
 		}
 
-		this.nodeConfig = nodeConfig;
-		this.counters = counters;
-		this.timers = timers;
-		this.now = now;
+		this.statsdConfig = statsdConfig;
+		this.countersQueue = countersQueue;
+		this.timersQueue = timersQueue;
 
-                Gson gson = new Gson();
-                config = gson.fromJson(c.configuration, GraphiteShipperConfig.class);
+		ObjectMapper mapper = new ObjectMapper();
+		GraphiteShipperConfig graphiteConfig = mapper.readValue(c.configuration, GraphiteShipperConfig.class);
 
-		if (null == config.graphite_host)
+		if (null == graphiteConfig.graphite_host)
 		{
 			throw new IllegalArgumentException("graphite_host is null in shipper's configuration");
 		}
 
-		String[] fields = config.graphite_host.split(":");
+		String[] fields = graphiteConfig.graphite_host.split(":");
 
 		if (fields.length != 2)
-		{	
+		{
 			throw new IllegalArgumentException("too few fields in graphite_host, expected host:port");
 		}
 
-		addr = InetAddress.getByName(fields[0]);
+		InetAddress addr = InetAddress.getByName(fields[0]);
 		sockAddr = new InetSocketAddress(addr, Integer.valueOf(fields[1]));
 		socket = new Socket();
 	}
 
+	public void shutdown()
+	{
+		done = true;
+	}
+
 	public void run()
 	{
-		try
+		Map.Entry<String, Long> counterEntry;
+		Map.Entry<String, DescriptiveStatistics> timerEntry;
+		String nowSuffix;
+		StringBuilder suffixBuilder = new StringBuilder(1024);
+		long now;
+
+		while (!done)
 		{
-			//
-			// 2 second timeout
-			//
-			socket.connect(sockAddr, 2000);
-			
-			DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
-
-			String nowSuffix = " " + now + "\n";
-	
-			for (String name : counters.keySet())
+			try
 			{
-				if (nodeConfig.suffix == null)
+				if (countersQueue.isEmpty() && timersQueue.isEmpty())
 				{
-					outToServer.writeBytes("stats." + name + " " + counters.get(name) + nowSuffix);
+					Thread.sleep(100);
+					continue;
 				}
-				else
-				{
-					outToServer.writeBytes("stats." + name + "." + nodeConfig.suffix + " " + counters.get(name) + nowSuffix);
-				}
-			}
-	
-			for (String name : timers.keySet())
-			{
-				if (nodeConfig.suffix == null)
-				{
-					outToServer.writeBytes("stats.timers." + name + ".mean" + " " + (int)(timers.get(name).getMean()) + nowSuffix);
-					outToServer.writeBytes("stats.timers." + name + ".min" + " " + (int)(timers.get(name).getMin()) + nowSuffix);
-					outToServer.writeBytes("stats.timers." + name + ".max" + " " + (int)(timers.get(name).getMax()) + nowSuffix);
-					outToServer.writeBytes("stats.timers." + name + ".stddev" + " " + (int)(timers.get(name).getStandardDeviation()) + nowSuffix);
 
-                                        if (nodeConfig.timer_percentiles_to_calculate != null)
-                                        {
-                                                for (Integer i : nodeConfig.timer_percentiles_to_calculate)
-                                                {
-							outToServer.writeBytes("stats.timers." + name + ".90th" + " " + 
-								(int)(timers.get(name).getPercentile(i)) + nowSuffix);
+				now = System.currentTimeMillis() / 1000;
+
+				suffixBuilder.setLength(0);
+				suffixBuilder.append(" ").append(now).append("\n");
+				nowSuffix = suffixBuilder.toString();
+
+				//
+				// 2 second timeout
+				//
+				socket.connect(sockAddr, 2000);
+
+				DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+
+				while ((counterEntry = countersQueue.poll(10, TimeUnit.MILLISECONDS)) != null)
+				{
+					if (statsdConfig.suffix == null)
+					{
+						outToServer.writeBytes("stats." + counterEntry.getKey() + " " + counterEntry.getValue() + nowSuffix);
+					}
+					else
+					{
+						outToServer.writeBytes("stats." + counterEntry.getKey() + "." + statsdConfig.suffix + " " + counterEntry.getValue() + nowSuffix);
+					}
+				}
+
+				while ((timerEntry = timersQueue.poll(10, TimeUnit.MILLISECONDS)) != null)
+				{
+					if (statsdConfig.suffix == null)
+					{
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".mean" + " " + (int)(timerEntry.getValue().getMean()) + nowSuffix);
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".min" + " " + (int)(timerEntry.getValue().getMin()) + nowSuffix);
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".max" + " " + (int)(timerEntry.getValue().getMax()) + nowSuffix);
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".stddev" + " " + (int)(timerEntry.getValue().getStandardDeviation()) + nowSuffix);
+
+						if (statsdConfig.timer_percentiles_to_calculate != null)
+						{
+							for (Integer i : statsdConfig.timer_percentiles_to_calculate)
+							{
+								outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".90th" + " " +
+									(int)(timerEntry.getValue().getPercentile(i)) + nowSuffix);
+							}
+						}
+					}
+					else
+					{
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".mean." + statsdConfig.suffix + " " + (int)(timerEntry.getValue().getMean()) + nowSuffix);
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".min." + statsdConfig.suffix + " " + (int)(timerEntry.getValue().getMin()) + nowSuffix);
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".max." + statsdConfig.suffix + " " + (int)(timerEntry.getValue().getMax()) + nowSuffix);
+						outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".stddev." + statsdConfig.suffix + " " + (int)(timerEntry.getValue().getStandardDeviation()) + nowSuffix);
+
+						if (statsdConfig.timer_percentiles_to_calculate != null)
+						{
+							for (Integer i : statsdConfig.timer_percentiles_to_calculate)
+							{
+								outToServer.writeBytes("stats.timers." + timerEntry.getKey() + ".90th." + statsdConfig.suffix + " " +
+									(int)(timerEntry.getValue().getPercentile(i)) + nowSuffix);
+							}
 						}
 					}
 				}
-				else
-				{
-					outToServer.writeBytes("stats.timers." + name + ".mean." + nodeConfig.suffix + " " + (int)(timers.get(name).getMean()) + nowSuffix);
-					outToServer.writeBytes("stats.timers." + name + ".min." + nodeConfig.suffix + " " + (int)(timers.get(name).getMin()) + nowSuffix);
-					outToServer.writeBytes("stats.timers." + name + ".max." + nodeConfig.suffix + " " + (int)(timers.get(name).getMax()) + nowSuffix);
-					outToServer.writeBytes("stats.timers." + name + ".stddev." + nodeConfig.suffix + " " + (int)(timers.get(name).getStandardDeviation()) + nowSuffix);
 
-                                        if (nodeConfig.timer_percentiles_to_calculate != null)
-                                        {
-                                                for (Integer i : nodeConfig.timer_percentiles_to_calculate)
-                                                {
-							outToServer.writeBytes("stats.timers." + name + ".90th." + nodeConfig.suffix + " " + 
-								(int)(timers.get(name).getPercentile(i)) + nowSuffix);
-						}
-					}
-				}
+				socket.close();
 			}
-	
-			socket.close();
-		}
-		catch (Exception e)
-		{
-			log.info("exception in socket send: " + e);
+			catch (Exception e)
+			{
+				log.info("exception in socket send: " + e);
+			}
 		}
 	}
 }

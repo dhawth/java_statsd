@@ -1,34 +1,19 @@
-/*
- *
- *  * Copyright 2012 David Hawthorne, 3Crowd/XDN, Inc.
- *  *
- *  *    Licensed under the Apache License, Version 2.0 (the "License");
- *  *    you may not use this file except in compliance with the License.
- *  *    You may obtain a copy of the License at
- *  *
- *  *        http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  *    Unless required by applicable law or agreed to in writing, software
- *  *    distributed under the License is distributed on an "AS IS" BASIS,
- *  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *    See the License for the specific language governing permissions and
- *  *    limitations under the License.
- *
- */
-
 package org.devnull.statsd;
 
-import java.util.*;
-
-import org.devnull.statsd.models.*;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.devnull.statsd.models.StatsdConfig;
+import org.devnull.statsd.models.ShipperConfig;
+
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.Map;
 
 public interface Shipper extends Runnable
 {
-	public void configure(final NodeConfig nodeConfig,
+	public void configure(final StatsdConfig statsdConfig,
 			      final ShipperConfig config,
-			      final long now,
-			      final HashMap<String, Long> counters,
-			      final HashMap<String, DescriptiveStatistics> timers)
+			      final LinkedBlockingQueue<Map.Entry<String, Long>> counters,
+			      final LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timers)
 		throws Exception;
+
+	public void shutdown();
 }

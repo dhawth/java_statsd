@@ -1,21 +1,3 @@
-/*
- *
- *  * Copyright 2012 David Hawthorne, 3Crowd/XDN, Inc.
- *  *
- *  *    Licensed under the Apache License, Version 2.0 (the "License");
- *  *    you may not use this file except in compliance with the License.
- *  *    You may obtain a copy of the License at
- *  *
- *  *        http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  *    Unless required by applicable law or agreed to in writing, software
- *  *    distributed under the License is distributed on an "AS IS" BASIS,
- *  *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *    See the License for the specific language governing permissions and
- *  *    limitations under the License.
- *
- */
-
 package org.devnull.statsd_client;
 
 /**
@@ -32,6 +14,8 @@ package org.devnull.statsd_client;
  */
 
 import org.apache.log4j.*;
+
+import org.devnull.statsd_client.JsonBase;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -50,21 +34,31 @@ import org.codehaus.jackson.map.ObjectWriter;
 // for storage of timer data until submission:
 //
 import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public final class StatsObject
+public final class StatsObject extends JsonBase
 {
 	private static Logger log = Logger.getLogger(StatsObject.class);
         private static final ObjectMapper mapper = new ObjectMapper();
+
+	@NotNull
 	private StringBuilder sb = new StringBuilder(65536);
+
+	@Nullable
 	private UDPStatsdClient udpStatsdClient = null;
 
-	private HashMap<String, StatObject> currentValues = new HashMap<String, StatObject>();;
-	private HashMap<String, IntArrayFIFOQueue> currentTimers = new HashMap<String, IntArrayFIFOQueue>();;
+	@NotNull
+	private final HashMap<String, StatObject> currentValues = new HashMap<String, StatObject>();
+
+	@NotNull
+	private final HashMap<String, IntArrayFIFOQueue> currentTimers = new HashMap<String, IntArrayFIFOQueue>();
 
 	//
 	// a place to store unused IntArrayFIFOQueues when they are not in use,
 	// to avoid object creation
 	//
+	@NotNull
 	private ArrayBlockingQueue<IntArrayFIFOQueue> queueQueue = new ArrayBlockingQueue<IntArrayFIFOQueue>(1000);
 
 	//
@@ -87,6 +81,7 @@ public final class StatsObject
 		public static final StatsObject INSTANCE = new StatsObject();
 	}
 
+	@NotNull
 	public static StatsObject getInstance()
 	{
 		return SingletonHolder.INSTANCE;
@@ -103,6 +98,7 @@ public final class StatsObject
 	 * returned map is unordered.
 	 */
 
+	@NotNull
 	public Map<String, Long> getMap()
 	{
 		Map<String, Long> map = new HashMap<String, Long>();
@@ -135,6 +131,7 @@ public final class StatsObject
 	//
 	// returns the same as getMap but also clears the local map after copying
 	//
+	@NotNull
 	public HashMap<String, Long> getMapAndClear()
 	{
 		HashMap<String, Long> map = new HashMap<String, Long>();
@@ -178,9 +175,10 @@ public final class StatsObject
 	// enough space for them.
 	// this is the only function that adds items to the queueQueue
 	//
+	@NotNull
 	public HashMap<String, String> getTimersAndClear()
 	{
-		IntArrayFIFOQueue q = null;
+		IntArrayFIFOQueue q;
 		HashMap<String, String> map = new HashMap<String, String>();
 
 		synchronized (currentTimers)
@@ -213,7 +211,7 @@ public final class StatsObject
 					//
 					// dequeueInt works until it throws a No Such Element exception
 					//
-					while (true)
+					while (!q.isEmpty())
 					{
 						sb.append(",").append(q.dequeueInt());
 					}
@@ -244,9 +242,10 @@ public final class StatsObject
 	// list of integers representing the values for those timers.
 	// does not modify the currentTimers hashmap or values.
 	//
+	@NotNull
 	public Map<String, String> getTimers()
 	{
-		IntArrayFIFOQueue q = null;
+		IntArrayFIFOQueue q;
 		HashMap<String, String> map = new HashMap<String, String>();
 
 		synchronized (currentTimers)
@@ -262,7 +261,7 @@ public final class StatsObject
 					continue;
 				}
 
-				int foo = 0;
+				int foo;
 
 				//
 				// pop int, put in string, then push int back onto end of queue
@@ -287,27 +286,13 @@ public final class StatsObject
 		return map;
 	}
 
-        public String toString()
-        {
-                synchronized(mapper)
-                {
-                        try
-                        {
-                                return mapper.writeValueAsString(this);
-                        }
-                        catch (IOException e)
-                        {
-                                return "unable to write value as string: " + e.getMessage();
-                        }
-                }
-        }
-
 	//
 	// returns the counter value of the named metric
 	//
+	@Nullable
 	public Long getValueByName(String name)
 	{
-		StatObject s = null;
+		StatObject s;
 
 		synchronized (currentValues)
 		{
@@ -469,7 +454,7 @@ public final class StatsObject
 	 * usage: update(StatsObject.ValueType.SUM, "some value that represents a sum", 5)
 	 */
 
-	public void update(final ValueType type, final String name, final long value)
+	public void update(@NotNull final ValueType type, @Nullable final String name, final long value)
 	{
 		if (name == null || value <= 0)
 		{
@@ -512,7 +497,6 @@ public final class StatsObject
 			}
 		}
 
-		return;
 	}
 
 	private final static class StatObject
