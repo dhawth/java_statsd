@@ -15,21 +15,22 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.HashMap;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class GraphiteShipper implements Shipper
 {
 	private static Logger log = Logger.getLogger(GraphiteShipper.class);
+
 	@Nullable
 	private StatsdConfig statsdConfig = null;
 	private boolean done = false;
 
 	@Nullable
-	private LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue = null;
+	private BlockingQueue<Map.Entry<String, Long>> countersQueue = null;
 	@Nullable
-	private LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = null;
+	private BlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = null;
 
 	@Nullable
 	private SocketAddress sockAddr = null;
@@ -42,8 +43,8 @@ public class GraphiteShipper implements Shipper
 
 	public void configure(@NotNull final StatsdConfig statsdConfig,
 			      @NotNull final ShipperConfig c,
-			      @NotNull final LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue,
-			      @NotNull final LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue)
+			      @NotNull final BlockingQueue<Map.Entry<String, Long>> countersQueue,
+			      @NotNull final BlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue)
 
 		throws Exception
 	{
@@ -55,9 +56,9 @@ public class GraphiteShipper implements Shipper
 		{
 			throw new IllegalArgumentException("ShipperConfig can not be null");
 		}
-		if (null == c.configuration)
+		if (null == c.config)
 		{
-			throw new IllegalArgumentException("ShipperConfig 'configuration' is null");
+			throw new IllegalArgumentException("ShipperConfig 'config' is null");
 		}
 		if (null == countersQueue)
 		{
@@ -73,11 +74,11 @@ public class GraphiteShipper implements Shipper
 		this.timersQueue = timersQueue;
 
 		ObjectMapper mapper = new ObjectMapper();
-		GraphiteShipperConfig graphiteConfig = mapper.readValue(c.configuration, GraphiteShipperConfig.class);
+		GraphiteShipperConfig graphiteConfig = mapper.readValue(c.config, GraphiteShipperConfig.class);
 
 		if (null == graphiteConfig.graphite_host)
 		{
-			throw new IllegalArgumentException("graphite_host is null in shipper's configuration");
+			throw new IllegalArgumentException("graphite_host is null in shipper's config");
 		}
 
 		String[] fields = graphiteConfig.graphite_host.split(":");

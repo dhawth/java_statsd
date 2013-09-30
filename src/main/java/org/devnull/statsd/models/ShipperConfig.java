@@ -1,6 +1,8 @@
 package org.devnull.statsd.models;
 
-import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.annotate.JsonProperty;
+
 import org.devnull.statsd.JsonBase;
 import org.jetbrains.annotations.Nullable;
 
@@ -17,6 +19,7 @@ final public class ShipperConfig extends JsonBase
 	// name of the class of the shipper, e.g. org.devnull.statsd.GraphiteShipper
 	//
 	@Nullable
+	@JsonProperty("class")
 	public String className = null;
 
 	//
@@ -24,5 +27,5 @@ final public class ShipperConfig extends JsonBase
 	// e.g. ..., "configuration" : "{\"graphite_host\":\"localhost:2003\"}", ...
 	//
 	@Nullable
-	public String configuration = null;
+	public JsonNode config = null;
 }

@@ -19,10 +19,16 @@
 package org.devnull;
 
 import org.devnull.statsd.models.*;
+
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.devnull.statsd.*;
 import org.devnull.statsd_client.models.*;
 import org.devnull.statsd_client.*;
 import java.util.*;
+
+import org.testng.annotations.*;
+import static org.testng.AssertJUnit.*;
 
 //
 // goal:
@@ -40,7 +46,8 @@ import java.util.*;
 
 public class TestUDPStatsdShipper
 {
-	public void testShipper()
+	@Test
+	public void testShipper() throws Exception
 	{
 		//
 		// put together config for statsd server
@@ -62,14 +69,16 @@ public class TestUDPStatsdShipper
 		//
 		config.shippers = new ArrayList<ShipperConfig>();
 
+		ObjectMapper mapper = new ObjectMapper();
+
 		ShipperConfig c1 = new ShipperConfig();
 		c1.className = "org.devnull.statsd.GraphiteShipper";
-		c1.configuration = "{\"graphite_host\":\"127.0.0.1:12003\"}";
+		c1.config = mapper.readTree("{\"graphite_host\":\"127.0.0.1:12003\"}");
 		config.shippers.add(c1);
 
 		ShipperConfig c2 = new ShipperConfig();
 		c2.className = "org.devnull.statsd.ZMQShipper";
-		c2.configuration = "{\"zmq_url\":\"tcp://127.0.0.1:12004\"}";
+		c2.config = mapper.readTree("{\"zmq_url\":\"tcp://127.0.0.1:12004\"}");
 		config.shippers.add(c2);
 	}
 }

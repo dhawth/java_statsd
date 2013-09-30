@@ -4,6 +4,9 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Context;
+import org.zeromq.ZMQ.Poller;
+import org.zeromq.ZMQ.Socket;
 import org.devnull.statsd.models.StatsdConfig;
 
 import java.util.ArrayList;
@@ -28,6 +31,7 @@ public class ZMQListener implements Listener, Runnable
 	private final HashMap<String, Long> counters;
 	private final HashMap<String, DescriptiveStatistics> timers;
 
+	@Nullable private ZMQ.Context context = null;
 	@Nullable private ZMQ.Socket socket = null;
 	@Nullable private ZMQ.Poller items = null;
 
@@ -36,12 +40,21 @@ public class ZMQListener implements Listener, Runnable
 		this.timers = timers;
 		this.counters = counters;
 
-		ZMQ.Context context = ZMQ.context(1);
+		try
+		{
+		context = ZMQ.context(1);
 		socket = context.socket(ZMQ.PULL);
 		socket.setLinger(0L);
 		socket.bind(config.zmq_url);
 		items = context.poller(1);
 		items.register(socket, ZMQ.Poller.POLLIN);
+		}
+		catch (NoClassDefFoundError e)
+		{
+			log.fatal("No class definition found for ZMQ.  Make sure jzmq.jar is in your classpath and " +
+				  "the system libraries it requires are in your LD_LIBRARY_PATH");
+			System.exit(1);
+		}
 	}
 
 	public void run()

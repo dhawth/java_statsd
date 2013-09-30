@@ -18,10 +18,11 @@ import java.util.List;
 final public class StatsdConfig extends JsonBase
 {
 	//
-	// a suffix to be used on all stats
+	// a suffix to be used on all stats, e.g. sjc1.hostname
+	// useful for globbing and grouping by datacenter, rack, etc
 	//
-	@NotNull
-	public String suffix = "sjc1.testnode";
+	@Nullable
+	public String suffix = null;
 
 	//
 	// how long in seconds between stats submissions
@@ -32,7 +33,7 @@ final public class StatsdConfig extends JsonBase
 	//
 	// if udp_host is null, UDPListener will not be started
 	//
-	@NotNull
+	@Nullable
 	public String  udp_host = "127.0.0.1";
 	@NotNull
 	public Integer udp_port = 8125;
@@ -40,9 +41,10 @@ final public class StatsdConfig extends JsonBase
 	//
 	// if null, ZMQListener will not be started.
 	// zmq url to bind to.
+	// e.g., "tcp://127.0.0.1:8765"
 	//
-	@NotNull
-	public String zmq_url = "tcp://127.0.0.1:8765";
+	@Nullable
+	public String zmq_url = null;
 
 	//
 	// list of places to ship things to, entirely dynamic

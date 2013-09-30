@@ -26,6 +26,7 @@ import java.lang.StringBuilder;
 
 import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
 import org.codehaus.jackson.annotate.JsonMethod;
+import org.codehaus.jackson.annotate.JsonIgnore;
 import org.codehaus.jackson.map.DeserializationConfig;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.ObjectWriter;
@@ -132,6 +133,7 @@ public final class StatsObject extends JsonBase
 	// returns the same as getMap but also clears the local map after copying
 	//
 	@NotNull
+	@JsonIgnore
 	public HashMap<String, Long> getMapAndClear()
 	{
 		HashMap<String, Long> map = new HashMap<String, Long>();
@@ -176,6 +178,7 @@ public final class StatsObject extends JsonBase
 	// this is the only function that adds items to the queueQueue
 	//
 	@NotNull
+	@JsonIgnore
 	public HashMap<String, String> getTimersAndClear()
 	{
 		IntArrayFIFOQueue q;
@@ -499,7 +502,7 @@ public final class StatsObject extends JsonBase
 
 	}
 
-	private final static class StatObject
+	private final static class StatObject extends JsonBase
 	{
 		private String key;
 		private ValueType type;

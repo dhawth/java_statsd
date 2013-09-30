@@ -7,10 +7,6 @@ import org.devnull.statsd.models.StatsdConfig;
 import org.devnull.statsd.models.ShipperConfig;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Context;
-import org.zeromq.ZMQ.Poller;
-import org.zeromq.ZMQ.Socket;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.net.DatagramPacket;
@@ -22,11 +18,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.BlockingQueue;
 import java.io.File;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.Map;
 
-public class Statsd implements Runnable
+public class Statsd extends JsonBase implements Runnable
 {
 	@Nullable
 	private static Logger log = null;
@@ -58,9 +55,9 @@ public class Statsd implements Runnable
 	protected final HashMap<String, DescriptiveStatistics> timers = new HashMap<String, DescriptiveStatistics>();
 
 	@NotNull
-	protected LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue = new LinkedBlockingQueue<Map.Entry<String, Long>>();
+	protected ArrayList<BlockingQueue<Map.Entry<String, Long>>> countersQueueList = new ArrayList<BlockingQueue<Map.Entry<String, Long>>>();
 	@NotNull
-	protected LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = new LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>>();
+	protected ArrayList<BlockingQueue<Map.Entry<String, DescriptiveStatistics>>> timersQueueList = new ArrayList<BlockingQueue<Map.Entry<String, DescriptiveStatistics>>>();
 
 	public static void main(String[] args) throws Exception
 	{
@@ -75,6 +72,11 @@ public class Statsd implements Runnable
 		BasicConfigurator.configure();
 		log = Logger.getLogger(Statsd.class);
 		parseOptions(args);
+
+		if (config == null)
+		{
+			throw new Exception("no configuration file specified (-c <path to config>)");
+		}
 
 		if (config.udp_host != null)
 		{
@@ -95,6 +97,12 @@ public class Statsd implements Runnable
 
 		for (ShipperConfig c : config.shippers)
 		{
+			BlockingQueue<Map.Entry<String, Long>> countersQueue = new LinkedBlockingQueue<Map.Entry<String, Long>>();
+			BlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = new LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>>();
+
+			countersQueueList.add(countersQueue);
+			timersQueueList.add(timersQueue);
+
 			Shipper s = (Shipper)Class.forName(c.className).newInstance();
 			s.configure(config, c, countersQueue, timersQueue);
 			shippers.add(s);
@@ -174,7 +182,7 @@ public class Statsd implements Runnable
 		//
 		if (null == log4jConfig)
 		{
-			PropertyConfigurator.configure(Statsd.class.getResource("/resources/log4j.conf"));
+			PropertyConfigurator.configure(Statsd.class.getResource("/log4j.conf"));
 		}
 		else
 		{
@@ -202,7 +210,6 @@ public class Statsd implements Runnable
 		{
 			if (option.getOpt().equals("c"))
 			{
-				ObjectMapper mapper = new ObjectMapper();
 				config = mapper.readValue(new File(option.getValue()), StatsdConfig.class);
 			}
 			else if (option.getOpt().equals("D"))
@@ -257,7 +264,10 @@ public class Statsd implements Runnable
 					{
 						for (Map.Entry<String, Long> e : counters.entrySet())
 						{
-							countersQueue.offer(e);
+							for (BlockingQueue<Map.Entry<String, Long>> q : countersQueueList)
+							{
+								q.offer(e);
+							}
 						}
 						counters.clear();
 					}
@@ -266,7 +276,10 @@ public class Statsd implements Runnable
 					{
 						for (Map.Entry<String, DescriptiveStatistics> e : timers.entrySet())
 						{
-							timersQueue.offer(e);
+							for (BlockingQueue<Map.Entry<String, DescriptiveStatistics>> q : timersQueueList)
+							{
+								q.offer(e);
+							}
 						}
 						timers.clear();
 					}

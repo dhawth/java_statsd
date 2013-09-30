@@ -9,12 +9,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
-import org.zeromq.ZMQ.Poller;
 import org.zeromq.ZMQ.Socket;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.util.HashMap;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -26,9 +25,9 @@ public class ZMQShipper implements Shipper
 	private boolean done = false;
 
 	@Nullable
-	private LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue = null;
+	private BlockingQueue<Map.Entry<String, Long>> countersQueue = null;
 	@Nullable
-	private LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = null;
+	private BlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue = null;
 
 	@Nullable
 	private Socket  socket  = null;
@@ -39,8 +38,8 @@ public class ZMQShipper implements Shipper
 
 	public void configure(@NotNull final StatsdConfig statsdConfig,
 			      @NotNull final ShipperConfig c,
-			      @NotNull final LinkedBlockingQueue<Map.Entry<String, Long>> countersQueue,
-			      @NotNull final LinkedBlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue)
+			      @NotNull final BlockingQueue<Map.Entry<String, Long>> countersQueue,
+			      @NotNull final BlockingQueue<Map.Entry<String, DescriptiveStatistics>> timersQueue)
 
 		throws Exception
 	{
@@ -65,17 +64,17 @@ public class ZMQShipper implements Shipper
 		this.countersQueue = countersQueue;
 		this.timersQueue = timersQueue;
 
-		if (null == c.configuration)
+		if (null == c.config)
 		{
-			throw new IllegalArgumentException("ShipperConfig 'configuration' is null");
+			throw new IllegalArgumentException("ShipperConfig 'config' is null");
 		}
 
 		ObjectMapper mapper = new ObjectMapper();
-		ZMQShipperConfig config = mapper.readValue(c.configuration, ZMQShipperConfig.class);
+		ZMQShipperConfig config = mapper.readValue(c.config, ZMQShipperConfig.class);
 
 		if (null == config.zmq_url)
 		{
-			throw new IllegalArgumentException("zmq_url is null in shipper's configuration");
+			throw new IllegalArgumentException("zmq_url is null in shipper's config");
 		}
 
 		Context context = ZMQ.context(1);

@@ -5,12 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.devnull.statsd</groupId>
-    <artifactId>StatsdLib</artifactId>
+    <artifactId>Statsd</artifactId>
     <version>0.0.1</version>
-    <modules>
-        <module>StatsdClientLib</module>
-    </modules>
-    <packaging>pom</packaging>
     <name>StatsdLib</name>
 
     <scm>
@@ -39,11 +35,6 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>15.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.zeromq</groupId>
-            <artifactId>jzmq</artifactId>
-            <version>2.1.0</version>
         </dependency>
         <dependency>
             <groupId>log4j</groupId>
@@ -95,6 +86,12 @@
             <artifactId>testng</artifactId>
             <version>6.1.1</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.zeromq</groupId>
+            <artifactId>jzmq</artifactId>
+            <version>2.1.0</version>
+	    <scope>provided</scope>
         </dependency>
     </dependencies>
 
