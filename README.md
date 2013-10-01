@@ -38,9 +38,26 @@ and a smaller jar for including/linking with your statsd client applications so 
 Runtime/Testing Dependencies
 ============================
 
-Have zmq library version 2.2.x installed and in your library path, as well as JZMQ.
+If you wish to use the ZMQ functionality with statsd either as a server or a client, you will
+need to have zmq library version 2.2.x installed and in your library path, as well as JZMQ.
 The jzmq jar file (zmq.jar) is not included in the monolithic jar file that maven will build.
-User must have permissions to bind to the interface and ports specified in the config file.
+User must have permission to bind to the interface and ports specified in the config file.
+
+If you are including the Statsd-0.0.1.jar in your own monolithic build for using the client libs,
+you will need to include the following dependencies in your jarball or have them in your CLASSPATH:
+
+	(generated from mvn dependency:list)
+
+	com.google.guava:guava:jar:15.0
+	com.intellij:annotations:jar:7.0.3
+	commons-cli:commons-cli:jar:1.2
+	commons-codec:commons-codec:jar:1.6
+	commons-io:commons-io:jar:2.3
+	it.unimi.dsi:fastutil:jar:6.1.0
+	log4j:log4j:jar:1.2.17
+	org.apache.commons:commons-math3:jar:3.0
+	org.codehaus.jackson:jackson-core-asl:jar:1.9.13
+	org.codehaus.jackson:jackson-mapper-asl:jar:1.9.13
 
 Running Statsd
 ==============
