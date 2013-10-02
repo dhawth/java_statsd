@@ -35,6 +35,19 @@ mvn package will create two .jar files in target/: one is a monolithic jar (exce
 which is further explained in the Confguration section) which can be used to run a statsd server,
 and a smaller jar for including/linking with your statsd client applications so they can talk to it.
 
+To install the non-monolithic jar for inclusion as a dependency in other projects:
+
+	mvn install
+
+	The version may change here, in general it should match the git tag
+	and the version number in the pom file:
+
+        <dependency>
+            <groupId>org.devnull.statsd</groupId>
+            <artifactId>Statsd</artifactId>
+            <version>0.0.1</version>
+        </dependency>
+
 Runtime/Testing Dependencies
 ============================
 
