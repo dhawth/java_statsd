@@ -2,67 +2,73 @@ package org.devnull.statsd_client;
 
 //
 // this class ships counters to statsd from the StatsObject instance every $period seconds
+// using the UDPStatsdClient class
 //
 
-import org.apache.log4j.*;
-
-import java.util.HashMap;
-import java.net.UnknownHostException;
-import java.net.SocketException;
-
+import org.apache.log4j.Logger;
 import org.devnull.statsd_client.models.UDPStatsdClientConfig;
 import org.jetbrains.annotations.Nullable;
+import org.codehaus.jackson.JsonNode;
 
-final public class UDPStatsdShipper implements Runnable
+import java.util.HashMap;
+
+final public class UDPStatsdShipper extends JsonBase implements Shipper
 {
-	private static Logger log 	= Logger.getLogger(UDPStatsdShipper.class);
+	private static Logger log = Logger.getLogger(UDPStatsdShipper.class);
 
 	private boolean done = false;
 
-	@Nullable private StatsObject so 		= null;
-	@Nullable private UDPStatsdClient client 	= null;
-	@Nullable private UDPStatsdClientConfig config 	= null;
+	@Nullable
+	private StatsObject so = null;
 
-	public UDPStatsdShipper()
+	@Nullable
+	private UDPStatsdClient client = null;
+
+	@Nullable
+	private UDPStatsdClientConfig config = null;
+
+	public UDPStatsdShipper() throws Exception
 	{
 	}
 
-	public UDPStatsdShipper(final UDPStatsdClientConfig c)
-		throws IllegalArgumentException, UnknownHostException, SocketException
+	public void configure(@Nullable final JsonNode node)
+		throws Exception
 	{
-		configure(c);
-	}
-
-	public void configure(@Nullable final UDPStatsdClientConfig c)
-		throws IllegalArgumentException, UnknownHostException, SocketException
-	{
-		if (null == c) {
+		if (null == node)
+		{
 			throw new IllegalArgumentException("config argument is null");
 		}
-		if (null == c.hostname || c.hostname.isEmpty()) {
+
+		this.config = mapper.readValue(node, UDPStatsdClientConfig.class);
+
+		if (null == config.hostname || config.hostname.isEmpty())
+		{
 			throw new IllegalArgumentException("statsd_config hostname is missing or is empty");
 		}
-		if (null == c.port || c.port < 1) {
+		if (null == config.port || config.port < 1)
+		{
 			throw new IllegalArgumentException("statsd_config port is missing or is < 1");
 		}
-		if (null == c.period || c.period < 1) {
+		if (null == config.period || config.period < 1)
+		{
 			throw new IllegalArgumentException("statsd_config period is missing or is < 1 second");
 		}
-		if (null == c.prepend_strings || c.prepend_strings.isEmpty()) {
+		if (null == config.prepend_strings || config.prepend_strings.isEmpty())
+		{
 			throw new IllegalArgumentException("statsd_config prepend_string is missing or is empty");
 		}
 
-		log 	= Logger.getLogger(UDPStatsdShipper.class);
-		config 	= c;
-		so 	= StatsObject.getInstance();
-		client	= new UDPStatsdClient(c.hostname, c.port);
+		log = Logger.getLogger(UDPStatsdShipper.class);
+		so = StatsObject.getInstance();
+		client = new UDPStatsdClient(config.hostname, config.port);
 		so.registerUDPStatsdClient(client);
 	}
 
-	private void shutdown()
+	public void shutdown()
 	{
 		done = true;
 	}
+
 	//
 	// this assumes that timers are all sent as they occur
 	// from within the StatsObject class as a result of registering the
@@ -103,7 +109,7 @@ final public class UDPStatsdShipper implements Runnable
 						// destination names from the config
 						//
 						real_key = real_key.replaceAll(" ", "_");
-	
+
 						//
 						// ship off to statsd
 						//

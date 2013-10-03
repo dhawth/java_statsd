@@ -23,28 +23,19 @@ package org.devnull.statsd_client;
  *
  */
 
-import java.util.Random;
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
-import org.zeromq.ZMQ.Poller;
 import org.zeromq.ZMQ.Socket;
-
-import org.apache.log4j.Logger;
 
 public class ZMQStatsdClient
 {
 	private static Logger log = Logger.getLogger(ZMQStatsdClient.class);
 
-	@NotNull private final Object socketLock = new Object();
+	@NotNull
+	private final Object socketLock = new Object();
 
 	@Nullable
 	private Socket socket = null;
@@ -57,7 +48,7 @@ public class ZMQStatsdClient
 	public ZMQStatsdClient(String url)
 	{
 		Context context = ZMQ.context(1);
-		socket  = context.socket(ZMQ.PUSH);
+		socket = context.socket(ZMQ.PUSH);
 		socket.setLinger(0);
 		socket.setHWM(1L);
 		//
@@ -85,13 +76,13 @@ public class ZMQStatsdClient
 
 	private boolean send(final String key, final String values, final String c)
 	{
-		synchronized(sb)
+		synchronized (sb)
 		{
 			sb.setLength(0);
 			sb.append(VERSION).append(";");
 			sb.append(key).append(":").append(values).append("|").append(c);
-	
-			synchronized(socketLock)
+
+			synchronized (socketLock)
 			{
 				return socket.send(sb.toString().getBytes(), 0);
 			}
@@ -100,13 +91,13 @@ public class ZMQStatsdClient
 
 	private boolean send(final String key, final int value, final String c)
 	{
-		synchronized(sb)
+		synchronized (sb)
 		{
 			sb.setLength(0);
 			sb.append(VERSION).append(";");
 			sb.append(key).append(":").append(value).append("|").append(c);
-	
-			synchronized(socketLock)
+
+			synchronized (socketLock)
 			{
 				return socket.send(sb.toString().getBytes(), 0);
 			}
@@ -118,7 +109,7 @@ public class ZMQStatsdClient
 	//
 	public boolean send(@NotNull final String message)
 	{
-		synchronized(socketLock)
+		synchronized (socketLock)
 		{
 			return socket.send(message.getBytes(), 0);
 		}

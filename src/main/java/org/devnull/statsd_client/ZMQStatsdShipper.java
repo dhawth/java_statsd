@@ -5,45 +5,44 @@ package org.devnull.statsd_client;
 //	getMapAndClear();
 // this class also ships the timers from the StatsObject instance every $period seconds
 //	getTimersAndClear();
+// this class uses the ZMQStatsdClient class to do so.
 //
 
-import org.apache.log4j.*;
-
-import java.util.*;
-
-import java.io.StringWriter;
-import java.io.PrintWriter;
-
+import org.apache.log4j.Logger;
 import org.devnull.statsd_client.models.ZMQStatsdClientConfig;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.codehaus.jackson.JsonNode;
 
-final public class ZMQStatsdShipper implements Runnable
+import java.util.HashMap;
+
+final public class ZMQStatsdShipper extends JsonBase implements Shipper
 {
-	private static Logger log 	= Logger.getLogger(ZMQStatsdShipper.class);
+	private static Logger log = Logger.getLogger(ZMQStatsdShipper.class);
 
 	private boolean done = false;
 
-	@NotNull private StatsObject so 	= StatsObject.getInstance();
-	@NotNull private StringBuilder sb	= new StringBuilder(65536);
+	@NotNull
+	private StatsObject so = StatsObject.getInstance();
+	@NotNull
+	private StringBuilder sb = new StringBuilder(65536);
 
 	private ZMQStatsdClientConfig config = null;
 	private ZMQStatsdClient client = null;
 
-	public ZMQStatsdShipper()
+	public ZMQStatsdShipper() throws Exception
 	{
 	}
 
-	public ZMQStatsdShipper(@NotNull final ZMQStatsdClientConfig c)
-		throws IllegalArgumentException
+	public void configure(final JsonNode node)
+		throws Exception
 	{
-		this.config = c;
-		configure(c);
-	}
+		if (null == node)
+		{
+			throw new IllegalArgumentException("config argument is null");
+		}
 
-	public void configure(final ZMQStatsdClientConfig c)
-		throws IllegalArgumentException
-	{
+		this.config = mapper.readValue(node, ZMQStatsdClientConfig.class);
+
 		if (null == config.zmq_url || config.zmq_url.isEmpty())
 		{
 			throw new IllegalArgumentException("zmq_url is missing or is 0 length");
@@ -57,7 +56,7 @@ final public class ZMQStatsdShipper implements Runnable
 			throw new IllegalArgumentException("prepend_strings is missing or is empty");
 		}
 
-		client	= new ZMQStatsdClient(config.zmq_url);
+		client = new ZMQStatsdClient(config.zmq_url);
 	}
 
 	public void shutdown()
@@ -81,7 +80,7 @@ final public class ZMQStatsdShipper implements Runnable
 					{
 						log.debug("shipping " + stats_map.size() + " stats to statsd");
 					}
-	
+
 					for (String key : stats_map.keySet())
 					{
 						for (String p : config.prepend_strings)
@@ -105,7 +104,7 @@ final public class ZMQStatsdShipper implements Runnable
 					{
 						log.debug("shipping " + timer_map.size() + " timers to statsd");
 					}
-	
+
 					for (String key : timer_map.keySet())
 					{
 						for (String p : config.prepend_strings)

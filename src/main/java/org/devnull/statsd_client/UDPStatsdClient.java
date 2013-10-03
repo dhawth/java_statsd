@@ -33,16 +33,12 @@ package org.devnull.statsd_client;
  * You know... the "Java way."
  */
 
-import java.util.Random;
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
+import java.net.*;
+import java.util.Random;
 
 public class UDPStatsdClient
 {
@@ -52,95 +48,119 @@ public class UDPStatsdClient
 
 	private InetAddress _host;
 	private int _port;
-	
+
 	private DatagramSocket _sock;
 
-	public UDPStatsdClient(String host, int port) throws UnknownHostException, SocketException {
+	public UDPStatsdClient(String host, int port) throws UnknownHostException, SocketException
+	{
 		this(InetAddress.getByName(host), port);
 	}
 
-	public UDPStatsdClient(InetAddress host, int port) throws SocketException {
+	public UDPStatsdClient(InetAddress host, int port) throws SocketException
+	{
 		_host = host;
 		_port = port;
 		_sock = new DatagramSocket();
 	}
 
-	public boolean timing(String key, int value) {
+	public boolean timing(String key, int value)
+	{
 		return timing(key, value, 1.0);
 	}
 
-	public boolean timing(String key, int value, double sampleRate) {
+	public boolean timing(String key, int value, double sampleRate)
+	{
 		return send(sampleRate, String.format("%s:%d|ms", key, value));
 	}
 
-	public boolean decrement(String key) {
+	public boolean decrement(String key)
+	{
 		return increment(key, -1, 1.0);
 	}
 
-	public boolean decrement(String key, int magnitude) {
+	public boolean decrement(String key, int magnitude)
+	{
 		return decrement(key, magnitude, 1.0);
 	}
 
-	public boolean decrement(String key, int magnitude, double sampleRate) {
-		magnitude = magnitude < 0 ? magnitude: -magnitude;
+	public boolean decrement(String key, int magnitude, double sampleRate)
+	{
+		magnitude = magnitude < 0 ? magnitude : -magnitude;
 		return increment(key, magnitude, sampleRate);
 	}
 
-	public boolean decrement(String... keys) {
+	public boolean decrement(String... keys)
+	{
 		return increment(-1, 1.0, keys);
 	}
 
-	public boolean decrement(int magnitude, String... keys) {
-		magnitude = magnitude < 0 ? magnitude: -magnitude;
+	public boolean decrement(int magnitude, String... keys)
+	{
+		magnitude = magnitude < 0 ? magnitude : -magnitude;
 		return increment(magnitude, 1.0, keys);
 	}
 
-	public boolean decrement(int magnitude, double sampleRate, String... keys) {
-		magnitude = magnitude < 0 ? magnitude: -magnitude;
+	public boolean decrement(int magnitude, double sampleRate, String... keys)
+	{
+		magnitude = magnitude < 0 ? magnitude : -magnitude;
 		return increment(magnitude, sampleRate, keys);
 	}
 
-	public boolean increment(String key) {
+	public boolean increment(String key)
+	{
 		return increment(key, 1, 1.0);
 	}
 
-	public boolean increment(String key, int magnitude) {
+	public boolean increment(String key, int magnitude)
+	{
 		return increment(key, magnitude, 1.0);
 	}
 
-	public boolean increment(String key, int magnitude, double sampleRate) {
+	public boolean increment(String key, int magnitude, double sampleRate)
+	{
 		String stat = String.format("%s:%s|c", key, magnitude);
 		return send(stat, sampleRate);
 	}
 
-	public boolean increment(int magnitude, double sampleRate, @NotNull String... keys) {
+	public boolean increment(int magnitude, double sampleRate, @NotNull String... keys)
+	{
 		String[] stats = new String[keys.length];
-		for (int i = 0; i < keys.length; i++) {
+		for (int i = 0; i < keys.length; i++)
+		{
 			stats[i] = String.format("%s:%s|c", keys[i], magnitude);
 		}
 		return send(sampleRate, stats);
 	}
 
-	private boolean send(String stat, double sampleRate) {
+	private boolean send(String stat, double sampleRate)
+	{
 		return send(sampleRate, stat);
 	}
 
-	private boolean send(double sampleRate, @NotNull String... stats) {
+	private boolean send(double sampleRate, @NotNull String... stats)
+	{
 
 		boolean retval = false; // didn't send anything
-		if (sampleRate < 1.0) {
-			for (String stat : stats) {
-				if (RNG.nextDouble() <= sampleRate) {
+		if (sampleRate < 1.0)
+		{
+			for (String stat : stats)
+			{
+				if (RNG.nextDouble() <= sampleRate)
+				{
 					stat = String.format("%s|@%f", stat, sampleRate);
-					if (doSend(stat)) {
+					if (doSend(stat))
+					{
 						retval = true;
 					}
 				}
 			}
 		}
-		else {
-			for (String stat : stats) {
-				if (doSend(stat)) {
+		else
+		{
+			for (String stat : stats)
+			{
+				if (doSend(stat))
+				{
 					retval = true;
 				}
 			}
@@ -149,13 +169,16 @@ public class UDPStatsdClient
 		return retval;
 	}
 
-	private boolean doSend(@NotNull String stat) {
-		try {
+	private boolean doSend(@NotNull String stat)
+	{
+		try
+		{
 			byte[] data = stat.getBytes();
 			_sock.send(new DatagramPacket(data, data.length, _host, _port));
 			return true;
 		}
-		catch (IOException e) {
+		catch (IOException e)
+		{
 			log.error(String.format("Could not send stat %s to host %s:%d", stat, _host, _port), e);
 		}
 		return false;

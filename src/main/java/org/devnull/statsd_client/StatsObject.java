@@ -5,43 +5,34 @@ package org.devnull.statsd_client;
  * your application and the submission of data to statsd.  The StatsObject can grow
  * unbounded unless it is cleared periodically by a StatsdShipper class, namely
  * {@link UDPStatsdShipper UDPStatsdShipper} or {@link ZMQStatsdShipper ZMQStatsdShipper}.
- * 
- * @author  David Hawthorne
+ *
+ * @author David Hawthorne
  * @version %I%, %G%
  * @see     UDPStatsdShipper
  * @see     ZMQStatsdShipper
- * @since   1.0
+ * @since 1.0
  */
 
-import org.apache.log4j.*;
-
-import org.devnull.statsd_client.JsonBase;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.*;
-import java.util.concurrent.*;
-import java.lang.StringBuilder;
-
-import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
-import org.codehaus.jackson.annotate.JsonMethod;
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
+import org.apache.log4j.Logger;
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.codehaus.jackson.map.DeserializationConfig;
 import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.ObjectWriter;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ArrayBlockingQueue;
 
 //
 // for storage of timer data until submission:
 //
-import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public final class StatsObject extends JsonBase
 {
 	private static Logger log = Logger.getLogger(StatsObject.class);
-        private static final ObjectMapper mapper = new ObjectMapper();
+	private static final ObjectMapper mapper = new ObjectMapper();
 
 	@NotNull
 	private StringBuilder sb = new StringBuilder(65536);
@@ -203,7 +194,7 @@ public final class StatsObject extends JsonBase
 					// but do not block.
 					//
 					queueQueue.offer(q);
-					
+
 					continue;
 				}
 
@@ -411,45 +402,45 @@ public final class StatsObject extends JsonBase
 		update(ValueType.SUM, key, 1L);
 	}
 
-        public void increment(final String key, final long value)
-        {
-                update(ValueType.SUM, key, value);
-        }
+	public void increment(final String key, final long value)
+	{
+		update(ValueType.SUM, key, value);
+	}
 
-        public void increment(final String key, final int value)
-        {
-                update(ValueType.SUM, key, (long)value);
-        }
+	public void increment(final String key, final int value)
+	{
+		update(ValueType.SUM, key, (long)value);
+	}
 
-        public void average(final String key, final long value)
-        {
-                update(ValueType.AVG, key, value);
-        }
+	public void average(final String key, final long value)
+	{
+		update(ValueType.AVG, key, value);
+	}
 
-        public void average(final String key, final int value)
-        {
-                update(ValueType.AVG, key, (long)value);
-        }
+	public void average(final String key, final int value)
+	{
+		update(ValueType.AVG, key, (long)value);
+	}
 
-        public void min(final String key, final long value)
-        {
-                update(ValueType.MIN, key, value);
-        }
+	public void min(final String key, final long value)
+	{
+		update(ValueType.MIN, key, value);
+	}
 
-        public void min(final String key, final int value)
-        {
-                update(ValueType.MIN, key, (long)value);
-        }
+	public void min(final String key, final int value)
+	{
+		update(ValueType.MIN, key, (long)value);
+	}
 
-        public void max(final String key, final long value)
-        {
-                update(ValueType.MAX, key, value);
-        }
-         
-        public void max(final String key, final int value)
-        {
-                update(ValueType.MAX, key, (long)value);
-        }
+	public void max(final String key, final long value)
+	{
+		update(ValueType.MAX, key, value);
+	}
+
+	public void max(final String key, final int value)
+	{
+		update(ValueType.MAX, key, (long)value);
+	}
 
 	/**
 	 * update

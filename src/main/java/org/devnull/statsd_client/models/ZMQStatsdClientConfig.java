@@ -1,31 +1,19 @@
 package org.devnull.statsd_client.models;
 
+import org.codehaus.jackson.map.ObjectMapper;
 import org.devnull.statsd_client.JsonBase;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
-import org.codehaus.jackson.annotate.JsonMethod;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.ObjectWriter;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.HashMap;
-import java.util.List;
 import java.util.LinkedList;
+import java.util.List;
 
 final public class ZMQStatsdClientConfig extends JsonBase
 {
-        private static final ObjectMapper mapper = new ObjectMapper();
-
-        //
-        // url of the zmq endpoint to connect to and send data to
-        //
-        @Nullable
+	//
+	// url of the zmq endpoint to connect to and send data to
+	//
+	@Nullable
 	public String zmq_url = null;
 
 	//

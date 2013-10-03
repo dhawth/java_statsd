@@ -1,29 +1,17 @@
 package org.devnull.statsd_client.models;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
-import org.codehaus.jackson.annotate.JsonMethod;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.ObjectWriter;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.LinkedList;
-
 import org.devnull.statsd.JsonBase;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.LinkedList;
+import java.util.List;
 
 final public class UDPStatsdClientConfig extends JsonBase
 {
-        //
-        // hostname and port of the UDP-based statsd server to talk to
-        //
-        @NotNull
+	//
+	// hostname and port of the UDP-based statsd server to talk to
+	//
+	@NotNull
 	public String hostname = "localhost";
 
 	@NotNull
