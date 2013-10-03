@@ -17,7 +17,7 @@ public interface Shipper extends Runnable
 	// UDPStatsdClient object with the StatsObject class.
 	// So the only stats we need to box up and ship out are the counters.
 	//
-	public void configure(final JsonNode node) throws Exception;
+	public void configure(final String node) throws Exception;
 
 	public void run();
 

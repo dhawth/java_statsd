@@ -31,7 +31,7 @@ final public class UDPStatsdShipper extends JsonBase implements Shipper
 	{
 	}
 
-	public void configure(@Nullable final JsonNode node)
+	public void configure(@Nullable final String node)
 		throws Exception
 	{
 		if (null == node)

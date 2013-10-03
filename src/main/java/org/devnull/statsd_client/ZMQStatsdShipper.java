@@ -33,7 +33,7 @@ final public class ZMQStatsdShipper extends JsonBase implements Shipper
 	{
 	}
 
-	public void configure(final JsonNode node)
+	public void configure(final String node)
 		throws Exception
 	{
 		if (null == node)

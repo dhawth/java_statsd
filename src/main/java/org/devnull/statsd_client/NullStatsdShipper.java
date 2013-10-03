@@ -21,7 +21,7 @@ public class NullStatsdShipper implements Shipper
 	{
 	}
 
-	public void configure(final JsonNode node) throws Exception
+	public void configure(final String node) throws Exception
 	{
 	}
 
