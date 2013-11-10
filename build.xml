@@ -21,10 +21,9 @@
 	<target name="package">
 		<mkdir dir="${dist.dir}"/>
 		<mkdir dir="${dist.dir}/lib"/>
-		<copy file="target/JavaStatsd-0.0.1.jar" tofile="JavaStatsd.jar"/>
 
 		<exec executable="fpm">
-			<arg line="-s dir -t deb -n java_statsd -v ${release_version} --iteration 1 -p dist/lib/java_statsd-${release_version}-1_amd64.deb --prefix /opt/java_statsd/bin -C target --description 'JavaStatsd Monitoring Daemon' JavaStatsd.jar"/>
+			<arg line="-s dir -t deb -n java_statsd -v ${release_version} --iteration 1 -p dist/lib/java_statsd-${release_version}-1_amd64.deb --prefix /opt/java_statsd/bin -C target --description 'JavaStatsd Monitoring Daemon' Statsd.jar"/>
 		</exec>
 	</target>
 </project>
