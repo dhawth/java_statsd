@@ -53,7 +53,7 @@ public class UDPListener implements Listener, Runnable
 				Arrays.fill(receiveBuff, (byte)0);
 				DatagramPacket p = new DatagramPacket(receiveBuff, receiveBuff.length);
 				socket.receive(p);
-				String data = new String(p.getData());
+				String data = new String(p.getData(), 0, p.getLength());
 
 				if (log.isDebugEnabled())
 				{
@@ -84,7 +84,7 @@ public class UDPListener implements Listener, Runnable
 					}
 					else
 					{
-						fields = line.split("|", 2);
+						fields = line.split("\\|", 2);
 					}
 
 					if (fields.length != 2)
@@ -93,7 +93,7 @@ public class UDPListener implements Listener, Runnable
 					}
 
 					String name = fields[0];
-					fields = fields[1].split("|");
+					fields = fields[1].split("\\|");
 
 					if (fields.length < 2)
 					{
@@ -101,7 +101,7 @@ public class UDPListener implements Listener, Runnable
 					}
 
 					String value = fields[0];
-					String type = fields[1];
+					String type  = fields[1];
 
 					if (type.equals("ms") || type.equals("t"))
 					{
@@ -152,6 +152,10 @@ public class UDPListener implements Listener, Runnable
 
 							counters.put(name, counters.get(name) + (long)v);
 						}
+					}
+					else
+					{
+						log.debug("unknown type: " + type);
 					}
 				}
 			}

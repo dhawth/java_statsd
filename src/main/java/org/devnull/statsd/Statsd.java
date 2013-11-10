@@ -103,6 +103,7 @@ public class Statsd extends JsonBase implements Runnable
 			countersQueueList.add(countersQueue);
 			timersQueueList.add(timersQueue);
 
+			log.debug("creating a shipper from class " + c.className);
 			Shipper s = (Shipper)Class.forName(c.className).newInstance();
 			s.configure(config, c, countersQueue, timersQueue);
 			shippers.add(s);
@@ -120,6 +121,7 @@ public class Statsd extends JsonBase implements Runnable
 	{
 		for (Thread t : threads)
 		{
+			log.debug("starting thread " + t.getName());
 			t.start();
 		}
 
@@ -254,6 +256,8 @@ public class Statsd extends JsonBase implements Runnable
 
 		public void run()
 		{
+			log.debug("starting DataShipper");
+
 			while (!done)
 			{
 				try

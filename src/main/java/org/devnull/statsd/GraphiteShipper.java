@@ -90,7 +90,6 @@ public class GraphiteShipper implements Shipper
 
 		InetAddress addr = InetAddress.getByName(fields[0]);
 		sockAddr = new InetSocketAddress(addr, Integer.valueOf(fields[1]));
-		socket = new Socket();
 	}
 
 	public void shutdown()
@@ -125,6 +124,7 @@ public class GraphiteShipper implements Shipper
 				//
 				// 2 second timeout
 				//
+				socket = new Socket();
 				socket.connect(sockAddr, 2000);
 
 				DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());

@@ -126,7 +126,7 @@ public class ZMQListener implements Listener, Runnable
 					}
 					else
 					{
-						fields = fields[1].split("|", 2);
+						fields = fields[1].split("\\|", 2);
 					}
 
 					if (fields.length != 2)
@@ -136,7 +136,7 @@ public class ZMQListener implements Listener, Runnable
 
 					String name = fields[0];
 
-					fields = fields[1].split("|");
+					fields = fields[1].split("\\|");
 
 					if (fields.length < 2)
 					{
@@ -195,6 +195,10 @@ public class ZMQListener implements Listener, Runnable
 
 							counters.put(name, counters.get(name) + (long)v);
 						}
+					}
+					else
+					{
+						log.debug("unknown type: " + type);
 					}
 				}
 			}
