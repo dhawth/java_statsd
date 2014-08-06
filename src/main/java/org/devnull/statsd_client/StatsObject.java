@@ -37,9 +37,6 @@ public final class StatsObject extends JsonBase
 	@NotNull
 	private StringBuilder sb = new StringBuilder(65536);
 
-	@Nullable
-	private UDPStatsdClient udpStatsdClient = null;
-
 	@NotNull
 	private final HashMap<String, StatObject> currentValues = new HashMap<String, StatObject>();
 
@@ -77,11 +74,6 @@ public final class StatsObject extends JsonBase
 	public static StatsObject getInstance()
 	{
 		return SingletonHolder.INSTANCE;
-	}
-
-	public void registerUDPStatsdClient(final UDPStatsdClient c)
-	{
-		this.udpStatsdClient = c;
 	}
 
 	/*
@@ -231,6 +223,25 @@ public final class StatsObject extends JsonBase
 		return map;
 	}
 
+	@NotNull
+	@JsonIgnore
+	public HashMap<String, IntArrayFIFOQueue> getTimerQueuesAndClear()
+	{
+		HashMap<String, IntArrayFIFOQueue> map = new HashMap<String, IntArrayFIFOQueue>();
+
+		synchronized (currentTimers)
+		{
+			for (String name : currentTimers.keySet())
+			{
+				map.put(name, currentTimers.get(name));
+			}
+
+			currentTimers.clear();
+		}
+
+		return map;
+	}
+
 	//
 	// returns an unsorted map of timers by name with values being a comma-delimited
 	// list of integers representing the values for those timers.
@@ -364,12 +375,6 @@ public final class StatsObject extends JsonBase
 	//
 	public void timing(final String name, final int value)
 	{
-		if (null != udpStatsdClient)
-		{
-			udpStatsdClient.timing(name, value);
-			return;
-		}
-
 		synchronized (currentTimers)
 		{
 			if (currentTimers.containsKey(name))

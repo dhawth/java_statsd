@@ -5,6 +5,7 @@ package org.devnull.statsd_client;
 // using the UDPStatsdClient class
 //
 
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import org.apache.log4j.Logger;
 import org.devnull.statsd_client.models.UDPStatsdClientConfig;
 import org.jetbrains.annotations.Nullable;
@@ -61,7 +62,6 @@ final public class UDPStatsdShipper extends JsonBase implements Shipper
 		log = Logger.getLogger(UDPStatsdShipper.class);
 		so = StatsObject.getInstance();
 		client = new UDPStatsdClient(config.hostname, config.port);
-		so.registerUDPStatsdClient(client);
 	}
 
 	public void shutdown()
@@ -69,12 +69,9 @@ final public class UDPStatsdShipper extends JsonBase implements Shipper
 		done = true;
 	}
 
-	//
-	// this assumes that timers are all sent as they occur
-	// from within the StatsObject class as a result of registering the
-	// UDPStatsdClient object with the StatsObject class.
-	// So the only stats we need to box up and ship out are the counters.
-	//
+	/**
+	 * ship timers and gauges every $period
+	 */
 	public void run()
 	{
 		while (!done)
@@ -85,35 +82,62 @@ final public class UDPStatsdShipper extends JsonBase implements Shipper
 
 				HashMap<String, Long> stats_map = so.getMapAndClear();
 
-				if (null == stats_map || stats_map.isEmpty())
+				if (!(null == stats_map || stats_map.isEmpty()))
 				{
-					continue;
-				}
 
-				if (log.isDebugEnabled())
-				{
-					log.debug("shipping " + stats_map.size() + " stats to statsd");
-				}
-
-				for (String key : stats_map.keySet())
-				{
-					//
-					// prepend the keys with the prepend value from the config
-					//
-					for (String prepend : config.prepend_strings)
+					if (log.isDebugEnabled())
 					{
-						String real_key = prepend + "." + key;
+						log.debug("shipping " + stats_map.size() + " stats to statsd");
+					}
+
+					for (String key : stats_map.keySet())
+					{
+						//
+						// prepend the keys with the prepend value from the config
+						//
+						for (String prepend : config.prepend_strings)
+						{
+							String real_key = prepend + "." + key;
+
+							//
+							// a little fixup: replace spaces with underscores to help out the
+							// destination names from the config
+							//
+							real_key = real_key.replaceAll(" ", "_");
+
+							//
+							// ship off to statsd
+							//
+							client.increment(real_key, stats_map.get(key).intValue());
+						}
+					}
+				}
+
+				HashMap<String, IntArrayFIFOQueue> timerMap = so.getTimerQueuesAndClear();
+
+				if (!(null == timerMap || timerMap.isEmpty()))
+				{
+					if (log.isDebugEnabled())
+					{
+						log.debug("shipping " + timerMap.size() + " timers to statsd");
+					}
+
+					for (String key : timerMap.keySet())
+					{
+						IntArrayFIFOQueue queue = timerMap.get(key);
 
 						//
-						// a little fixup: replace spaces with underscores to help out the
-						// destination names from the config
+						// prepend the keys iwht the prepend values from the config
 						//
-						real_key = real_key.replaceAll(" ", "_");
+						for (String prepend : config.prepend_strings)
+						{
+							String real_key = (prepend + "." + key).replaceAll(" ", "_");
 
-						//
-						// ship off to statsd
-						//
-						client.increment(real_key, stats_map.get(key).intValue());
+							while (!queue.isEmpty())
+							{
+								client.timing(real_key, queue.dequeueInt());
+							}
+						}
 					}
 				}
 			}
