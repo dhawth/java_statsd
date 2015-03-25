@@ -22,6 +22,14 @@
         </license>
     </licenses>
 
+    <distributionManagement>
+      <repository>
+        <id>pertino</id>
+        <name>pertino-releases</name>
+        <url>http://pertino.artifactoryonline.com/pertino/private-maven</url>
+      </repository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>com.google.guava</groupId>
