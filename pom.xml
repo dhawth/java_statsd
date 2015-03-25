@@ -23,13 +23,6 @@
         </license>
     </licenses>
 
-    <repositories>
-        <repository>
-            <id>mvn-local-repo</id>
-            <url>file:lib/</url>
-        </repository>
-    </repositories>
-
     <dependencies>
         <dependency>
             <groupId>com.google.guava</groupId>
@@ -88,10 +81,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.zeromq</groupId>
+            <groupId>org.zeromq</groupId>
             <artifactId>jzmq</artifactId>
-            <version>2.1.0</version>
-	    <scope>provided</scope>
+            <version>2.2.2</version>
         </dependency>
     </dependencies>
 
