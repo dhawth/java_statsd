@@ -6,7 +6,7 @@
 
     <groupId>org.devnull</groupId>
     <artifactId>statsd</artifactId>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
 
     <scm>
         <url>

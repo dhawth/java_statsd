@@ -29,7 +29,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 // for storage of timer data until submission:
 //
 
-public final class StatsObject extends JsonBase
+public class StatsObject extends JsonBase
 {
 	private static Logger log = Logger.getLogger(StatsObject.class);
 	private static final ObjectMapper mapper = new ObjectMapper();
