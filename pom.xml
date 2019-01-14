@@ -7,7 +7,6 @@
     <groupId>org.devnull</groupId>
     <artifactId>statsd</artifactId>
     <version>1.0.7</version>
-
     <scm>
         <url>
             https://github.com/dhawth/java_statsd
