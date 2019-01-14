@@ -62,7 +62,7 @@ public class UDPListener implements Listener, Runnable
 
 				ArrayList<String> lines = new ArrayList<String>();
 
-				if (data.contains("\\n"))
+				if (data.contains("\n"))
 				{
 					Collections.addAll(lines, data.split("\\n"));
 				}

@@ -6,8 +6,7 @@
 
     <groupId>org.devnull</groupId>
     <artifactId>statsd</artifactId>
-    <version>1.0.6</version>
-
+    <version>1.0.7</version>
     <scm>
         <url>
             https://github.com/dhawth/java_statsd
@@ -21,6 +20,14 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <distributionManagement>
+      <repository>
+        <id>pertino</id>
+        <name>pertino-releases</name>
+        <url>http://pertino.artifactoryonline.com/pertino/private-maven</url>
+      </repository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>
