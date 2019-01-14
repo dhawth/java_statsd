@@ -140,6 +140,22 @@ public final class TestStatsObject
 		Map<String, String> timers = so.getTimers();
 
 		assertTrue(timers.toString(), timers.size() == 1);
-		assertTrue(so.toString(), so.toString().equals("{\"map\":{\"avg_test\":30,\"max_test\":500,\"sum_test\":150,\"min_test\":50},\"timers\":{\"foo\":\"1,2,3,1,2,3\"}}"));
+
+		StatsObject referenceStatsObject = StatsObject.getInstance();
+		referenceStatsObject.set("avg_test", 30);
+		referenceStatsObject.set("max_test", 500);
+		referenceStatsObject.set("sum_test", 150);
+		referenceStatsObject.set("min_test", 50);
+		referenceStatsObject.timing("foo", 1);
+		referenceStatsObject.timing("foo", 2);
+		referenceStatsObject.timing("foo", 3);
+		referenceStatsObject.timing("foo", 1);
+		referenceStatsObject.timing("foo", 2);
+		referenceStatsObject.timing("foo", 3);
+		assertEquals(so.getMap().get("avg_test"),referenceStatsObject.getMap().get("avg_test"));
+		assertEquals(so.getMap().get("sum_test"),referenceStatsObject.getMap().get("sum_test"));
+		assertEquals(so.getMap().get("max_test"),referenceStatsObject.getMap().get("max_test"));
+		assertEquals(so.getMap().get("min_test"),referenceStatsObject.getMap().get("min_test"));
+		assertEquals(so.getMap().get("timers"),referenceStatsObject.getMap().get("timers"));
 	}
 }
